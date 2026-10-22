@@ -1,0 +1,846 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GNSS Pocket Lab - Pixel Edition</title>
+<style>
+  :root{
+    --bg:#1a1114; --panel:#241a1e; --line:#3a2a31; --ink:#f4e6ea; --dim:#b99aa6;
+    --ok:#3ddc97; --warn:#ffb020; --bad:#ff5c5c; --acc:#FFB6C1; --acc-dim:#c98d99;
+    --mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+  header{display:flex;align-items:center;gap:10px;padding:12px 18px;
+         border-bottom:1px solid var(--line);background:var(--panel);
+         position:sticky;top:0;z-index:10;flex-wrap:wrap}
+  h1{font-size:15px;margin:0;letter-spacing:.4px;color:var(--acc)}
+  h2{font-size:12px;margin:0 0 12px;text-transform:uppercase;
+     letter-spacing:1.2px;color:var(--acc-dim)}
+  main{display:grid;gap:14px;padding:14px;
+       grid-template-columns:repeat(auto-fit,minmax(360px,1fr));
+       align-items:start}
+  .panel{background:var(--panel);border:1px solid var(--line);
+         border-radius:10px;padding:14px}
+  .wide{grid-column:1/-1}
+  .pill{font:11px/1 var(--mono);padding:5px 9px;border-radius:99px;
+        border:1px solid var(--line);color:var(--dim)}
+  .pill.live{color:var(--ok);border-color:var(--ok);
+             box-shadow:0 0 12px rgba(61,220,151,.25)}
+  .pill.dead{color:var(--bad);border-color:var(--bad)}
+  .pill.pink{color:var(--acc);border-color:var(--acc)}
+  .pill.busy{color:var(--warn);border-color:var(--warn)}
+  label{display:block;font-size:11px;color:var(--dim);margin:10px 0 4px;
+        text-transform:uppercase;letter-spacing:.8px}
+  input[type=text],input[type=number],select{width:100%;background:#160f12;
+        border:1px solid var(--line);color:var(--ink);border-radius:6px;
+        padding:8px 9px;font:13px var(--mono)}
+  input:focus,select:focus{outline:none;border-color:var(--acc);
+        box-shadow:0 0 0 2px rgba(255,182,193,.15)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  button{background:#2c1f24;border:1px solid var(--line);color:var(--ink);
+         padding:9px 14px;border-radius:6px;cursor:pointer;font:12px var(--mono);
+         letter-spacing:.5px}
+  button:hover:not(:disabled){border-color:var(--acc);color:#fff}
+  button:disabled{opacity:.35;cursor:not-allowed}
+  button.go{background:#123a2a;border-color:var(--ok);color:var(--ok)}
+  button.go:hover:not(:disabled){background:var(--ok);color:#062014}
+  button.stop{border-color:var(--bad);color:var(--bad)}
+  .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .chk{display:flex;align-items:flex-start;gap:8px;margin-top:14px;
+       font-size:12px;color:var(--dim);text-transform:none;letter-spacing:0}
+  .chk input{margin-top:2px}
+  pre{margin:0;background:#140d10;border:1px solid var(--line);border-radius:6px;
+      padding:10px;overflow:auto;font:11.5px/1.45 var(--mono);
+      color:var(--acc);white-space:pre-wrap;word-break:break-all}
+  pre.log{color:#f0c9d2;height:280px}
+  pre.cmd{height:auto;max-height:120px;margin-top:6px}
+  pre .hit{color:var(--ok)} pre .err{color:var(--bad)} pre .dim{color:var(--dim)}
+  table{width:100%;border-collapse:collapse;font:12.5px var(--mono)}
+  td{padding:5px 0;border-bottom:1px solid var(--line);vertical-align:top}
+  td:first-child{color:var(--dim);width:42%;text-transform:uppercase;
+                 font-size:10.5px;letter-spacing:.7px}
+  td:last-child{text-align:right;word-break:break-all}
+  td.ok{color:var(--ok)} td.warn{color:var(--warn)} td.bad{color:var(--bad)}
+  .note{font-size:11px;color:var(--dim);margin-top:10px;line-height:1.5}
+  code{background:#140d10;padding:1px 5px;border-radius:4px;
+       border:1px solid var(--line);font:11.5px var(--mono);color:var(--acc)}
+  .mono{font-family:var(--mono)}
+  .bar{height:6px;background:#160f12;border:1px solid var(--line);
+       border-radius:99px;overflow:hidden;margin-top:10px}
+  .bar>i{display:block;height:100%;background:var(--acc);width:0;
+         transition:width .2s}
+  .bar>i.tx{background:var(--ok)}
+
+  .lure{padding:16px;border:1px solid var(--acc);border-radius:10px;
+        background:linear-gradient(180deg,#2b1c21,#241a1e)}
+  .lure label{margin-top:0;color:var(--acc)}
+  .lurebar{display:flex;gap:8px;margin-top:6px}
+  .lurebar input{font-size:17px;padding:12px;letter-spacing:.5px;
+                 background:#160f12;border-color:var(--acc-dim)}
+  .lurebar button{padding:12px 18px;font-size:13px;white-space:nowrap}
+  .quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .quick button{padding:5px 9px;font-size:11px;background:#2c1f24}
+  .parsed{margin-top:10px;font:12px var(--mono);color:var(--dim);min-height:18px}
+  .parsed.ok{color:var(--ok)} .parsed.bad{color:var(--bad)}
+  .stage{display:flex;gap:8px;align-items:center;margin-top:12px;
+         font:12px var(--mono);color:var(--dim);flex-wrap:wrap}
+  .stage b{color:var(--acc)}
+
+  /* Light kawaii pixel theme */
+  :root{
+    --bg:#fff8ee;--panel:#fffdf9;--line:#67516f;--ink:#44364e;--dim:#72617a;
+    --ok:#276c55;--warn:#906015;--bad:#ad355b;--acc:#ad426d;--acc-dim:#825695;
+    --mono:"Cascadia Mono",Consolas,monospace
+  }
+  body{color:var(--ink);font:14px/1.6 var(--mono);background-color:var(--bg);overflow-x:hidden;
+       background-image:radial-gradient(#ecd9e3 1.5px,transparent 1.5px);
+       background-size:16px 16px}
+  header{padding:18px 28px;background:#f9dce8;border-bottom:3px solid var(--line);
+         position:relative}
+  h1{font-size:18px;margin-right:16px;letter-spacing:1px;color:var(--ink)}
+  h2{font-size:13px;margin:-18px -18px 18px;padding:10px 14px;color:var(--ink);
+     background:#eee2fb;border-bottom:2px solid var(--line)}
+  h2::before{content:"◆ ";color:var(--acc)}
+  main{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;max-width:1320px;
+       margin:auto;padding:28px;align-items:start}
+  .panel{min-width:0;background:var(--panel);border:2px solid var(--line);
+         border-radius:0;box-shadow:5px 5px 0 #d7c3df;padding:18px}
+  .pill{font-size:11px;padding:5px 9px;background:#fffafc;border:2px solid #a18ba6;
+        border-radius:0;color:var(--dim)}
+  .pill.live{color:var(--ok);border-color:var(--ok);background:#dff4e9;box-shadow:none}
+  .pill.dead{color:var(--bad);border-color:var(--bad);background:#ffe3e8}
+  .pill.pink{color:var(--acc);border-color:var(--acc)}
+  .pill.busy{color:var(--warn);border-color:var(--warn);background:#fff0c8}
+  input[type=text],input[type=number],select{background:#fff;color:var(--ink);
+        border:2px solid #a18ba6;border-radius:0;padding:10px}
+  input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid var(--acc);
+        outline-offset:3px;box-shadow:none}
+  .row,.row3{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .row3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  button,.download{background:#eee2fb;border:2px solid var(--line);color:var(--ink);
+         padding:10px 14px;border-radius:0;font:bold 12px var(--mono);
+         box-shadow:3px 3px 0 #ad96b6;text-decoration:none;display:inline-block}
+  button:hover:not(:disabled),.download:hover{background:#fbd8e7;color:var(--ink);
+         transform:translate(-1px,-1px)}
+  button:active:not(:disabled){transform:translate(2px,2px);box-shadow:none}
+  button:disabled{opacity:.45;box-shadow:none}
+  button.go{background:#d9f2e4;border-color:var(--line);color:#205c45}
+  button.go:hover:not(:disabled){background:#c7ead7;color:#205c45}
+  button.stop{background:#ffe1e7;border-color:var(--line);color:var(--bad)}
+  .chk input{accent-color:var(--acc)}
+  pre{background:#faf1fc;border:2px solid #c4abcd;border-radius:0;padding:14px;
+      color:var(--ink);word-break:normal;overflow-wrap:anywhere}
+  pre.log{height:260px;background:#f3f8ee;color:var(--ink)}
+  td{padding:8px 0;border-bottom:1px dashed #dacbdd}
+  td:first-child{font-size:11px}
+  code{background:#eee2fb;border:0;border-radius:0;color:var(--acc)}
+  .bar{height:14px;background:#fff;border:2px solid var(--line);border-radius:0;
+       margin-top:16px}
+  .bar>i{background:repeating-linear-gradient(90deg,#d383a8 0 10px,#f6c7dc 10px 13px)}
+  .bar>i.tx{background:#78b99a}
+  .lure{padding:18px;border:2px solid var(--line);border-radius:0;background:#fff1f6}
+  .lurebar{gap:12px;margin-top:8px}.lurebar input{background:#fff;border-color:#a18ba6}
+  .quick{gap:10px;margin-top:14px}.quick button{padding:7px 10px;background:#fff7dc}
+  .arcade-hero{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;
+               gap:24px;padding:14px 6px}
+  .eyebrow{font-size:11px;letter-spacing:2px;color:var(--acc);font-weight:bold}
+  .arcade-hero h3{font-size:clamp(26px,4vw,42px);line-height:1.18;margin:10px 0;
+                  letter-spacing:-1px}
+  .arcade-hero p{font-size:12px;max-width:640px;color:var(--dim)}
+  .pixel-pet{flex-shrink:0;width:140px;height:112px;image-rendering:pixelated}
+  .receiver-note{background:#fff7dc;border:2px dashed #ba9d66;padding:12px;
+                 margin-top:16px;font-size:12px}
+  .receiver-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;margin-top:18px}
+  .receiver-output{height:300px;overflow:auto;white-space:pre-wrap;font-size:11px}
+  #receiverError{color:var(--bad)}
+  @media(max-width:760px){.receiver-grid{grid-template-columns:minmax(0,1fr)}}
+  .footer{max-width:1320px;margin:0 auto;padding:0 28px 28px;color:var(--dim);
+          font-size:11px}
+  @media(min-width:1100px){main{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .toolchain{grid-column:span 2}}
+  @media(max-width:760px){header{padding:14px;gap:7px}main{grid-template-columns:minmax(0,1fr);
+    width:100%;max-width:100vw;padding:18px;gap:20px}.panel{max-width:100%}
+    .lurebar{flex-wrap:wrap}.lurebar input{flex:1 1 100%;min-width:0}
+    .lurebar button{flex:1 1 100%;white-space:normal}.arcade-hero{align-items:flex-start}
+    .pixel-pet{width:80px;height:64px}.row3{grid-template-columns:1fr}h1{width:100%}
+    header>span:last-child{width:100%;margin-left:0!important}.receiver-note{overflow-wrap:anywhere}}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>&hearts; GNSS POCKET LAB</h1>
+  <span class="pill" id="hwPill">checking radio…</span>
+  <span class="pill pink" id="rfPill">L1 1575.42 MHz</span>
+  <span class="pill" id="stagePill">idle</span>
+  <span class="pill" id="wsPill">connecting</span>
+  <span class="pill mono" id="clock">--:--</span>
+  <span style="margin-left:auto;font-size:11px;color:var(--dim)" class="mono">
+    hackrf → neo-6m</span>
+</header>
+
+<main>
+  <div class="arcade-hero">
+    <div>
+      <div class="eyebrow">PLAYER 01 / PIXEL EDITION</div>
+      <h3>GPS SPOOFING</h3>
+      <p>Your GNSS bench, dressed in pixels. Set a scenario, check the equipment,
+         and follow each step from render to receiver.</p>
+    </div>
+    <svg class="pixel-pet" viewBox="0 0 35 28" aria-label="Happy pixel satellite"
+         role="img" shape-rendering="crispEdges">
+      <path fill="#67516f" d="M13 3h9v2h3v4h8v12h-8v3H11v-3H2V9h9V5h2z"/>
+      <path fill="#b9dce7" d="M3 10h7v10H3zM26 10h6v10h-6z"/>
+      <path fill="#fff0bc" d="M14 4h7v2h3v16H12V6h2z"/>
+      <path fill="#67516f" d="M15 11h2v3h-2zM20 11h2v3h-2zM17 17h4v2h-4z"/>
+      <path fill="#efa4bf" d="M13 15h3v2h-3zM22 15h2v2h-2z"/>
+      <path fill="#67516f" d="M6 10h1v10H6zM29 10h1v10h-1zM3 14h7v1H3zM26 14h6v1H26z"/>
+    </svg>
+  </div>
+  <section class="panel wide lure">
+    <label>01 / Choose your scenario</label>
+    <div class="lurebar">
+      <input type="text" id="lureInput" autocomplete="off" spellcheck="false"
+             placeholder="-33.868800, 151.209300  or  Sydney">
+      <button class="go" id="btnLure" onclick="fireLure()">Render + transmit</button>
+      <button id="btnDry" onclick="startDry()">Render only</button>
+      <button class="stop" id="btnStop" onclick="stopRun()">Stop</button>
+    </div>
+    <div class="parsed" id="parsed">Enter a coordinate pair to arm the transmitter.</div>
+    <div class="bar"><i id="progBar"></i></div>
+    <div class="stage">
+      <span>stage:</span><b id="stageName">idle</b>
+      <span id="stageDetail"></span>
+    </div>
+    <div class="receiver-note"><b id="receiverBadge">Receiver disconnected</b>
+      <span id="receiverSummary"> / Connect the receiver serial port below to see its actual output.</span></div>
+    <div class="quick">
+      <button onclick="quick('-33.868800, 151.209300')">Sydney</button>
+      <button onclick="quick('47.376900, 8.541700')">Zurich</button>
+      <button onclick="quick('51.477900, -0.001500')">Greenwich</button>
+      <button onclick="quick('40.712800, -74.006000')">New York</button>
+      <button onclick="quick('35.658600, 139.745400')">Tokyo</button>
+      <button onclick="quick('0.000000, 0.000000')">Null Island</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>02 / Equipment check</h2>
+    <table>
+      <tr><td>HackRF</td><td id="hFound">checking…</td></tr>
+      <tr><td>Serial</td><td id="hSerial">--</td></tr>
+      <tr><td>gps-sdr-sim</td><td id="hGen">--</td></tr>
+      <tr><td>hackrf_transfer</td><td id="hTx">--</td></tr>
+      <tr><td>RINEX ephemeris</td><td id="hEph">--</td></tr>
+      <tr><td>Blocking</td><td id="hBlock">--</td></tr>
+    </table>
+    <div class="btns">
+      <button onclick="rescan()">Re-scan</button>
+      <button id="btnReset" onclick="resetHackrf()">Reset HackRF</button>
+    </div>
+    <label class="chk"><input type="checkbox" id="autoReset" checked onchange="saveMaintenance()">
+      <span>Reset HackRF every 5 minutes (waits for idle during a test).</span></label>
+    <label class="chk"><input type="checkbox" id="resetInterrupt" onchange="saveMaintenance()">
+      <span>Reset at the deadline even during a test. This ends transmission;
+      start a new test afterward.</span></label>
+    <p class="note" id="resetStatus">Reset timer: checking...</p>
+    <label class="chk">
+      <input type="checkbox" id="shielded">
+      <span><b>My test is cabled with attenuation and inside an RF-shielded enclosure.</b>
+      Confirm RF isolation before starting a transmission.</span>
+    </label>
+    <p class="note" id="hNote">Probing…</p>
+  </section>
+
+  <section class="panel">
+    <h2>03 / Signal settings</h2>
+    <table>
+      <tr><td>Centre frequency</td><td id="rFreq">1575.42 MHz</td></tr>
+      <tr><td>Sample rate</td><td id="rSr">2.60 MS/s</td></tr>
+      <tr><td>Baseband BW</td><td id="rBw">2.5 MHz</td></tr>
+      <tr><td>L1 main lobe</td><td>2.046 MHz</td></tr>
+      <tr><td>TX gain (-x)</td><td id="rGain">0 dB</td></tr>
+      <tr><td>RF amplifier (-a)</td><td id="rAmp">off</td></tr>
+      <tr><td>Loop (-R)</td><td id="rLoop">off</td></tr>
+      <tr><td>Satellite channels</td><td>6 distinct GPS L1 C/A PRNs</td></tr>
+      <tr><td>LNAV timing</td><td>50 bit/s / 6 s subframes / 30 s frames</td></tr>
+      <tr><td>25-frame cycle</td><td>750 s / 12 min 30 s</td></tr>
+    </table>
+    <div class="row" style="margin-top:12px">
+      <div><label>TX gain dB (0–47)</label><input type="text" id="gain" value="0"></div>
+      <div><label>Render seconds (RF minimum 750)</label><input type="text" id="dur" value="750"></div>
+    </div>
+    <label class="chk"><input type="checkbox" id="ampEnable">
+      <span>Enable HackRF RF amplifier</span></label>
+    <label>Sample rate (Hz)</label>
+    <select id="rate">
+      <option value="2600000">2600000 — gps-sdr-sim default</option>
+      <option value="4000000">4000000</option>
+      <option value="6000000">6000000</option>
+      <option value="10000000">10000000</option>
+    </select>
+    <p class="note">
+      <b>Keep the render rate equal to the transmit rate</b> (-s is passed to
+      both). Signed 8-bit I/Q uses 5.2 MB/s at 2.6 MS/s, so 750 s is about 3.9 GB.
+      The file plays once so GPS time always moves forward during acquisition.
+      All six satellite signals use the coordinates entered above, with individual
+      orbit, clock and propagation timing for each satellite.
+      <br>Digital dBFS is sample amplitude; receiver acquisition requires
+      independent serial evidence.
+    </p>
+  </section>
+
+  <section class="panel">
+    <h2>04 / Satellite data</h2>
+    <label>RINEX navigation file</label>
+    <select id="eph"><option value="">(none found)</option></select>
+    <div class="btns" style="margin-top:8px">
+      <button onclick="$('ephFile').click()">Upload navigation file</button>
+      <input type="file" id="ephFile" accept=".nav,.22n,.23n,.24n,.25n,.26n" hidden
+             onchange="uploadEph(this.files[0])">
+    </div>
+    <table style="margin-top:12px">
+      <tr><td>Scenario time (-T, GPST)</td><td id="tEpoch">current GPS time at start</td></tr>
+      <tr><td>Scheduled RF start (UTC)</td><td id="tUtc">--</td></tr>
+      <tr><td>Generated channels</td><td id="tSats">--</td></tr>
+      <tr><td>Satellite PRNs</td><td id="tPrns">--</td></tr>
+      <tr><td>I/Q size</td><td id="tIq">0 MB</td></tr>
+      <tr><td>Receiver acquisition</td><td id="tPos" class="warn">Unverified</td></tr>
+    </table>
+    <p class="note">
+      Auto mode uses <code>-T</code> with GPS time and the navigation file's leap-second
+      offset. Transmission waits for the displayed UTC start, on a 30-second GPS frame boundary.
+    </p>
+  </section>
+
+  <section class="panel toolchain">
+    <h2>05 / Tool inventory</h2>
+    <label>gps-sdr-sim</label>
+    <input type="text" id="p_gen" spellcheck="false" placeholder="auto-discover">
+    <label>hackrf_transfer</label>
+    <input type="text" id="p_tx" spellcheck="false" placeholder="auto-discover">
+    <label>hackrf_info</label>
+    <input type="text" id="p_info" spellcheck="false" placeholder="auto-discover">
+    <label>SoapySDRUtil</label>
+    <input type="text" id="p_soapy" spellcheck="false" placeholder="auto-discover">
+    <div class="btns">
+      <button onclick="saveTools()">Save paths</button>
+      <button onclick="clearTools()">Use auto-discovery</button>
+    </div>
+    <table style="margin-top:12px">
+      <tr><td>Source</td><td id="tSrc">--</td></tr>
+    </table>
+    <p class="note" id="tNote">
+      Paths are stored in <code>config.json</code> next to the app, so they
+      survive restarts. Leave a field empty to fall back to auto-discovery,
+      then to PATH, then to the <code>GPS_SDR_SIM</code> /
+      <code>HACKRF_TRANSFER</code> environment variables.
+    </p>
+  </section>
+
+  <section class="panel wide">
+    <h2>06 / Command queue</h2>
+    <label>1 — render I/Q (gps-sdr-sim)</label>
+    <pre class="cmd" id="cmdGen">--</pre>
+    <label style="margin-top:12px">2 — transmit L1 (hackrf_transfer)</label>
+    <pre class="cmd" id="cmdTx">--</pre>
+    <div class="btns"><a class="download" href="/api/capture">Download I/Q</a></div>
+  </section>
+
+  <section class="panel wide" id="receiverPanel">
+    <h2>07 / NEO-6M live receiver</h2>
+    <div class="row3">
+      <div><label for="receiverPort">Receiver / ESP32 serial port</label>
+        <select id="receiverPort"><option value="">Scanning ports...</option></select></div>
+      <div><label for="receiverBaud">Serial baud rate</label>
+        <select id="receiverBaud">
+          <option value="115200">115200 (ESP32 Serial Monitor)</option>
+          <option value="9600">9600 (direct NEO-6M)</option>
+          <option value="38400">38400</option><option value="57600">57600</option>
+          <option value="19200">19200</option><option value="4800">4800</option>
+          <option value="230400">230400</option>
+        </select></div>
+      <div class="btns"><button id="receiverConnect" onclick="connectReceiver()">Connect receiver</button>
+        <button id="receiverDisconnect" onclick="disconnectReceiver()" disabled>Disconnect</button>
+        <button id="receiverScan" onclick="scanReceiverPorts()">Refresh ports</button></div>
+    </div>
+    <p class="note">Close Arduino Serial Monitor before connecting here. Supports your
+      ESP32's printed GPS output and checksummed raw NMEA. Log timestamps come from the PC.
+      A fresh report alone does not verify acquisition of the target coordinates.</p>
+    <p class="note" id="receiverError" role="status"></p>
+    <div class="receiver-grid">
+      <div>
+        <span class="pill" id="receiverPill">disconnected</span>
+        <table style="width:100%;margin-top:12px">
+          <tr><td>Latitude (fresh)</td><td id="receiverLat">--</td></tr>
+          <tr><td>Longitude (fresh)</td><td id="receiverLon">--</td></tr>
+          <tr><td>Satellites reported / used</td><td id="receiverCount">--</td></tr>
+          <tr><td>HDOP</td><td id="receiverHdop">--</td></tr>
+          <tr><td>Position age</td><td id="receiverAge">--</td></tr>
+          <tr><td>Receiver UTC</td><td id="receiverUtc">--</td></tr>
+          <tr><td>Input format</td><td id="receiverFormat">--</td></tr>
+          <tr><td>NMEA checksum errors</td><td id="receiverChecksums">0</td></tr>
+        </table>
+        <p class="note" id="receiverLast">No position received.</p>
+        <p class="note" id="receiverSatInfo">Per-satellite information appears when raw GSV sentences are available.</p>
+      </div>
+      <div><label>Timestamped receiver output (latest 200 lines)</label>
+        <pre class="receiver-output" id="receiverOutput">Connect the receiver to begin.</pre>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel wide">
+    <h2>08 / Quest log</h2>
+    <pre id="log" class="log"></pre>
+  </section>
+</main>
+<div class="footer">&hearts; Made for the bench / GNSS Pocket Lab / Keep test RF isolated.</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const num = id => parseFloat($(id).value) || 0;
+let ws, running = false, since = 0;
+let hwBlocking = null;
+let lastProgress = 0;
+
+const PLACES = {
+  'sydney': [-33.8688, 151.2093], 'zurich': [47.3769, 8.5417],
+  'greenwich': [51.4779, -0.0015], 'new york': [40.7128, -74.0060],
+  'tokyo': [35.6586, 139.7454], 'london': [51.5074, -0.1278],
+  'null island': [0, 0],
+};
+
+function parseCoords(text) {
+  const s = (text || '').trim().toLowerCase();
+  if (!s) return null;
+  for (const [name, c] of Object.entries(PLACES)) {
+    if (s === name || s.startsWith(name + ',')) return { lat: c[0], lon: c[1], alt: 0 };
+  }
+  const raw = s.split(/[,\s]+/).filter(Boolean);
+  const parts = [];
+  for (const t of raw) {
+    const n = Number(t);
+    if (Number.isNaN(n)) return null;
+    parts.push(n);
+  }
+  if (parts.length < 2) return null;
+  const [a, b, alt] = parts;
+  if (Math.abs(a) <= 90 && Math.abs(b) > 90) return { lat: a, lon: b, alt: alt || 0 };
+  if (Math.abs(b) <= 90 && Math.abs(a) > 90) return { lat: b, lon: a, alt: alt || 0 };
+  if (Math.abs(a) <= 90 && Math.abs(b) <= 180) return { lat: a, lon: b, alt: alt || 0 };
+  return null;
+}
+
+function onLureInput() {
+  const r = parseCoords($('lureInput').value);
+  const el = $('parsed');
+  if (!r) {
+    el.className = 'parsed bad';
+    el.textContent = $('lureInput').value.trim()
+      ? 'Could not read that — try "-33.8688, 151.2093"'
+      : 'Enter a coordinate pair to arm the transmitter.';
+    updateArmButtons();
+    return;
+  }
+  const bad = Math.abs(r.lat) > 90 || Math.abs(r.lon) > 180;
+  el.className = 'parsed ' + (bad ? 'bad' : 'ok');
+  el.textContent = bad
+    ? `Out of range: lat ${r.lat}, lon ${r.lon}`
+    : `scenario → ${r.lat.toFixed(6)}, ${r.lon.toFixed(6)} @ ${r.alt} m`;
+  updateArmButtons();
+}
+
+function quick(v) { $('lureInput').value = v; onLureInput(); }
+
+function scenario() {
+  const r = parseCoords($('lureInput').value) || { lat: -33.8688, lon: 151.2093, alt: 0 };
+  return {
+    lat: r.lat, lon: r.lon, alt_m: r.alt,
+    duration_s: parseInt($('dur').value) || 750,
+    sample_rate: parseInt($('rate').value) || 2600000,
+    iq_bits: 8,
+    scenario_time: null,
+    freq_hz: 1575420000,
+    tx_gain_db: parseInt($('gain').value) || 0,
+    baseband_bw_hz: 2500000,
+    amp_enable: $('ampEnable').checked, repeat: false, serial: null,
+  };
+}
+
+async function fireLure() {
+  const r = parseCoords($('lureInput').value);
+  if (!r || Math.abs(r.lat) > 90 || Math.abs(r.lon) > 180) return onLureInput();
+  if (!$('shielded').checked) {
+    log('!! tick the shielded-enclosure confirmation before transmitting', 'err');
+    $('shielded').focus();
+    return;
+  }
+  await api('/api/scenario', scenario());
+  try {
+    await api('/api/lure', {
+      lat: r.lat, lon: r.lon, alt_m: r.alt,
+      ephemeris: $('eph').value || null,
+      shielded: $('shielded').checked,
+      tx_gain_db: parseInt($('gain').value) || 0,
+      duration_s: parseInt($('dur').value) || 750,
+    });
+    log('--- rendering + transmitting ' + r.lat + ', ' + r.lon + ' ---', 'hit');
+  } catch (e) {}
+}
+
+async function startDry() {
+  await api('/api/scenario', scenario());
+  try {
+    await api('/api/start', { mode: 'dry', ephemeris: $('eph').value || null });
+    log('--- rendering I/Q only, no radio ---', 'dim');
+  } catch (e) {}
+}
+
+async function stopRun() { await api('/api/stop', {}); log('--- stopped ---', 'err'); }
+
+async function scanReceiverPorts() {
+  try {
+    const d = await api('/api/ports');
+    const select = $('receiverPort'), previous = select.value;
+    select.replaceChildren();
+    for (const port of d.ports) {
+      const option = document.createElement('option');
+      option.value = port.port;
+      option.textContent = port.port + ' / ' + port.description;
+      select.appendChild(option);
+    }
+    if (!d.ports.length) select.add(new Option('No serial ports found', ''));
+    else select.value = d.ports.some(p => p.port === previous) ? previous
+      : (d.ports.find(p => /CH340|USB.*SERIAL|CP210|ESP32/i.test(p.description)) || d.ports[0]).port;
+  } catch (e) {}
+}
+
+async function connectReceiver() {
+  if (!$('receiverPort').value) return;
+  $('receiverConnect').disabled = true;
+  try {
+    const data = await api('/api/receiver/connect', {
+      port: $('receiverPort').value, baud: Number($('receiverBaud').value),
+    });
+    renderReceiver(data);
+  } catch (e) { $('receiverConnect').disabled = false; }
+}
+
+async function disconnectReceiver() {
+  try { renderReceiver(await api('/api/receiver/disconnect', {})); } catch (e) {}
+}
+
+function renderReceiver(data) {
+  $('receiverConnect').disabled = data.connected;
+  $('receiverDisconnect').disabled = !data.connected;
+  $('receiverPort').disabled = data.connected;
+  $('receiverBaud').disabled = data.connected;
+  $('receiverScan').disabled = data.connected;
+  if (data.connected) {
+    if (![...$('receiverPort').options].some(o => o.value === data.port)) {
+      $('receiverPort').add(new Option(data.port, data.port));
+    }
+    $('receiverPort').value = data.port;
+    $('receiverBaud').value = String(data.baud);
+  }
+  $('receiverPill').textContent = data.status;
+  $('receiverPill').className = 'pill ' + (data.fresh ? 'live' : data.connected ? 'busy' : '');
+  $('receiverBadge').textContent = data.status;
+  $('receiverSummary').textContent = data.fresh
+    ? ` / ${data.latitude.toFixed(6)}, ${data.longitude.toFixed(6)} (receiver-reported)`
+    : ' / Last known coordinates are not a fresh fix.';
+  $('receiverLat').textContent = data.fresh ? data.latitude.toFixed(6) : '--';
+  $('receiverLon').textContent = data.fresh ? data.longitude.toFixed(6) : '--';
+  $('receiverCount').textContent = data.satellites ?? '--';
+  $('receiverHdop').textContent = data.hdop == null ? '--' : data.hdop.toFixed(2);
+  $('receiverAge').textContent = data.position_age_s == null ? '--' : data.position_age_s.toFixed(1) + ' s';
+  $('receiverFormat').textContent = data.format || '--';
+  $('receiverChecksums').textContent = data.checksum_errors;
+  $('receiverError').textContent = data.error || '';
+  const utc = data.utc_time?.match(/^(\d{2})(\d{2})(\d{2}(?:\.\d+)?)$/);
+  $('receiverUtc').textContent = utc ? utc.slice(1).join(':') + ' UTC' : '-- (not provided by text output)';
+  const last = data.last_position;
+  $('receiverLast').textContent = last?.latitude != null
+    ? `Last reported: ${last.latitude.toFixed(6)}, ${last.longitude.toFixed(6)}${data.fresh ? '' : ' / stale or invalid'}`
+    : 'No position received.';
+  $('tPos').textContent = data.fresh ? 'Fresh receiver fix reported' : 'No fresh receiver fix';
+  $('tPos').className = data.fresh ? 'ok' : 'warn';
+  const satellites = data.satellites_in_view || [];
+  $('receiverSatInfo').textContent = satellites.length
+    ? satellites.map(s => `${s.talker} ${s.prn}: ${s.cno == null ? '--' : s.cno} dB-Hz`).join(' / ')
+    : 'Per-satellite information appears when raw GSV sentences are available.';
+  const output = $('receiverOutput');
+  const follow = output.scrollHeight - output.scrollTop - output.clientHeight < 35;
+  output.textContent = data.lines?.length
+    ? data.lines.map(l => l.at.slice(11, 23) + 'Z  ' + l.text).join('\n')
+    : 'Waiting for receiver serial output...';
+  if (follow) output.scrollTop = output.scrollHeight;
+}
+
+function updateArmButtons() {
+  const bad = !parseCoords($('lureInput').value);
+  const blocked = hwBlocking !== null;
+  $('btnLure').disabled = running || blocked || bad || !$('shielded').checked;
+  $('btnDry').disabled = running || bad;
+  $('btnStop').disabled = !running;
+  $('btnLure').title = blocked
+    ? ({radio: 'No HackRF detected', generator: 'gps-sdr-sim not installed',
+        transfer: 'hackrf_transfer not installed', ephemeris: 'no ephemeris file'})[hwBlocking] || 'blocked'
+    : '';
+}
+
+async function api(path, body) {
+  const opt = body === undefined ? {} : {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  };
+  const r = await fetch(path, opt);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { log('!! ' + (j.detail || r.statusText), 'err'); throw new Error(j.detail); }
+  return j;
+}
+
+function log(line, cls) {
+  const el = $('log'), span = document.createElement('span');
+  if (cls) span.className = cls;
+  span.textContent = line + '\n';
+  el.appendChild(span);
+  el.scrollTop = el.scrollHeight;
+  while (el.childNodes.length > 800) el.removeChild(el.firstChild);
+}
+
+async function loadEph() {
+  try {
+    const d = await api('/api/ephemeris');
+    const previous = $('eph').value;
+    $('eph').innerHTML = d.files.length
+      ? d.files.map(f => `<option>${f}</option>`).join('')
+      : '<option value="">(none found — upload a navigation file)</option>';
+    if (d.files.length) $('eph').value = d.files.includes(previous) ? previous : (d.recommended || d.files.at(-1));
+    for (const [name, reason] of Object.entries(d.rejected || {})) {
+      log(`# excluded ${name}: ${reason}`, 'dim');
+    }
+    $('tEpoch').textContent = d.epoch || '--';
+  } catch (e) {}
+}
+
+async function uploadEph(file) {
+  if (!file) return;
+  const fd = new FormData(); fd.append('file', file);
+  const r = await fetch('/api/ephemeris/upload', { method: 'POST', body: fd });
+  const j = await r.json();
+  if (r.ok) { log('+ saved ' + j.saved + ' (epoch ' + (j.epoch || '?') + ')', 'hit'); loadEph(); }
+  else log('!! upload failed', 'err');
+}
+
+const TOOL_FIELDS = {
+  gps_sdr_sim: 'p_gen', hackrf_transfer: 'p_tx',
+  hackrf_info: 'p_info', soapydr_util: 'p_soapy',
+};
+
+function renderTools(t) {
+  if (!t) return;
+  const srcs = [];
+  for (const [name, id] of Object.entries(TOOL_FIELDS)) {
+    const info = t[name];
+    const el = $(id);
+    if (document.activeElement !== el) {
+      el.value = info?.path || '';
+      el.style.borderColor = info?.found ? '' : 'var(--bad)';
+      el.title = info?.found ? `resolved via ${info.source}` : 'NOT FOUND';
+    }
+    srcs.push(`${name.split('_')[0]}:${info?.source || '?'}`);
+  }
+  $('tSrc').textContent = srcs.join(' ');
+}
+
+async function saveTools() {
+  for (const [name, id] of Object.entries(TOOL_FIELDS)) {
+    try {
+      await api('/api/tools', { name, path: $(id).value.trim() || null });
+    } catch (e) {}
+  }
+  log('+ toolchain paths saved to config.json', 'hit');
+  const h = await api('/api/hardware?force=1');
+  renderHardware(h);
+}
+
+async function clearTools() {
+  for (const name of Object.keys(TOOL_FIELDS)) {
+    try { await api('/api/tools', { name, path: null }); } catch (e) {}
+  }
+  log('+ cleared config.json, falling back to auto-discovery', 'dim');
+  const h = await api('/api/hardware?force=1');
+  renderHardware(h);
+}
+
+async function rescan() {
+  $('hwPill').textContent = 'scanning…'; $('hwPill').className = 'pill';
+  try {
+    const h = await api('/api/hardware?force=1');
+    renderHardware(h);
+    log(h.present === true ? '+++ HackRF found' : '!!! radio not detected',
+        h.present === true ? 'hit' : 'err');
+  } catch (e) {}
+}
+
+async function resetHackrf() {
+  try {
+    $('btnReset').disabled = true;
+    const r = await api('/api/hackrf/reset', {});
+    log('+ HackRF reset and reopened: ' + r.serial, 'hit');
+    await rescan();
+  } catch (e) {}
+}
+
+async function saveMaintenance() {
+  try {
+    await api('/api/hackrf/maintenance', {
+      enabled: $('autoReset').checked, interrupt: $('resetInterrupt').checked,
+    });
+  } catch (e) {}
+}
+
+function renderHardware(h) {
+  hwBlocking = h.blocking || null;
+  const pill = $('hwPill');
+  if (h.present === true) {
+    pill.textContent = 'HackRF found' + (h.serial ? ' · ' + h.serial.slice(-8) : '');
+    pill.className = 'pill live';
+    $('hFound').textContent = 'CONNECTED'; $('hFound').className = 'ok';
+  } else if (h.present === false) {
+    pill.textContent = 'no HackRF'; pill.className = 'pill dead';
+    $('hFound').textContent = 'NOT DETECTED'; $('hFound').className = 'bad';
+  } else {
+    pill.textContent = 'radio unknown'; pill.className = 'pill dead';
+    $('hFound').textContent = 'UNKNOWN'; $('hFound').className = 'warn';
+  }
+  $('hSerial').textContent = h.serial || '--';
+
+  const set = (id, ok, yes, no) => {
+    $(id).textContent = ok ? yes : no;
+    $(id).className = ok ? 'ok' : 'bad';
+  };
+  set('hGen', h.generator_installed, 'ready', 'MISSING');
+  set('hTx', h.transfer_installed, 'ready', 'MISSING');
+  $('hGen').title = h.generator_path || 'not found — set a path under Toolchain';
+  $('hTx').title = h.transfer_path || 'not found — set a path under Toolchain';
+
+  $('hBlock').textContent = h.blocking || 'nothing';
+  $('hBlock').className = h.blocking ? 'bad' : 'ok';
+
+  const why = {
+    radio: h.error || 'No HackRF on the USB bus. Transmission is blocked.',
+    generator: 'gps-sdr-sim was not found. Set its path under Toolchain, '
+      + 'or put gps-sdr-sim.exe on PATH.',
+    transfer: 'hackrf_transfer was not found. Set its path under Toolchain, '
+      + 'or install the HackRF host tools.',
+    ephemeris: 'No RINEX nav file in ./work — copy a brdc*.22n in, or upload one.',
+  }[h.blocking];
+  $('hNote').textContent = why ||
+    ('Radio and toolchain ready. ' + (h.serial ? 'Serial ' + h.serial : ''));
+}
+
+function render(s) {
+  running = s.state !== 'idle';
+  if (running && !since) since = Date.now() - s.elapsed * 1000;
+  if (!running) since = 0;
+  $('btnReset').disabled = running;
+  const maintenance = s.maintenance;
+  if (maintenance) {
+    $('autoReset').checked = maintenance.enabled;
+    $('resetInterrupt').checked = maintenance.interrupt;
+    $('resetStatus').textContent = maintenance.status +
+      (maintenance.enabled ? ' / next reset ' + fmt(maintenance.next_in_s || 0) : '') +
+      (maintenance.last_result?.error ? ' / ' + maintenance.last_result.error : '');
+  }
+
+  const stageLabel = s.state === 'transmitting' ? 'transfer active' : s.state;
+  $('stagePill').textContent = stageLabel;
+  $('stagePill').className = 'pill ' + (running ? 'busy' : '');
+  $('stageName').textContent = stageLabel;
+
+  const p = s.progress || {};
+  $('stageDetail').textContent = p.stage === 'generating'
+    ? `${(p.seconds || 0).toFixed(1)}s / ${s.scenario.duration_s}s rendered`
+    : (p.stage === 'synchronizing' ? 'waiting for scheduled UTC start'
+    : (p.stage === 'transmitting' ? 'sample transfer / receiver acquisition unverified' : ''));
+  if (s.state === 'transmitting' && s.telemetry?.transfer_mib_s) {
+    $('stageDetail').textContent = s.telemetry.transfer_mib_s.toFixed(2) +
+      ' MiB/s reported / receiver acquisition unverified';
+  }
+
+  const total = s.scenario.duration_s || 1;
+  const pct = p.stage === 'transmitting' ? 100
+    : Math.min(100, ((p.seconds || 0) / total) * 100);
+  const bar = $('progBar');
+  bar.style.width = pct + '%';
+  bar.className = p.stage === 'transmitting' ? 'tx' : '';
+
+  $('cmdGen').textContent = s.commands?.generate || '--';
+  $('cmdTx').textContent = s.commands?.transfer || '--';
+
+  $('rFreq').textContent = (s.rf?.freq_mhz ?? 1575.42) + ' MHz';
+  $('rSr').textContent = (s.rf?.sample_rate_msps ?? 2.6) + ' MS/s';
+  $('rBw').textContent = (s.rf?.baseband_bw_mhz ?? 2.5) + ' MHz';
+  $('rGain').textContent = (s.rf?.tx_gain_db ?? 0) + ' dB';
+  $('rAmp').textContent = s.scenario?.amp_enable ? 'on' : 'off';
+  $('rLoop').textContent = s.scenario?.repeat ? 'on' : 'off';
+  $('rfPill').textContent = 'L1 ' + (s.rf?.freq_mhz ?? 1575.42) + ' MHz';
+  $('rfPill').className = 'pill ' + (s.rf?.l1_locked === false ? 'dead' : 'pink');
+
+  $('tIq').textContent = ((s.iq_size || 0) / 1e6).toFixed(1) + ' MB';
+  $('tSats').textContent = s.telemetry?.channels?.length ?? '--';
+  if (s.telemetry?.scenario_time) {
+    $('tEpoch').textContent = s.telemetry.scenario_time + ' GPST';
+  }
+  $('tUtc').textContent = s.telemetry?.utc_start || '--';
+  $('tPrns').textContent = s.telemetry?.prns?.join(', ') || '--';
+  $('hEph').textContent = (s.ephemeris || []).length ? s.ephemeris.join(', ') : 'none';
+  $('hEph').className = (s.ephemeris || []).length ? 'ok' : 'bad';
+
+  if (s.hardware) renderHardware(s.hardware);
+  if (s.tools) renderTools(s.tools);
+  updateArmButtons();
+}
+
+function fmt(x) {
+  const t = Math.floor(x);
+  return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+}
+
+function connect() {
+  const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${scheme}//${location.host}/ws`);
+  ws.onopen = () => { $('wsPill').textContent = 'linked'; $('wsPill').className = 'pill live'; };
+  ws.onclose = () => {
+    $('wsPill').textContent = 'offline'; $('wsPill').className = 'pill dead';
+    setTimeout(connect, 2000);
+  };
+  ws.onmessage = ev => {
+    const m = JSON.parse(ev.data);
+    if (m.type === 'log') log(m.line);
+    else if (m.type === 'state') render(m);
+    else if (m.type === 'receiver') renderReceiver(m);
+  };
+}
+
+$('lureInput').value = '-33.868800, 151.209300';
+$('lureInput').addEventListener('input', onLureInput);
+$('shielded').addEventListener('change', updateArmButtons);
+onLureInput();
+connect();
+loadEph();
+scanReceiverPorts();
+fetch('/api/receiver').then(r => r.json()).then(renderReceiver).catch(() => {});
+setInterval(() => { if (since) $('clock').textContent = fmt((Date.now() - since) / 1000); }, 500);
+setInterval(() => fetch('/api/state').then(r => r.json()).then(render).catch(() => {}), 1000);
+setInterval(() => fetch('/api/receiver').then(r => r.json()).then(renderReceiver).catch(() => {}), 1000);
+</script>
+</body>
+</html>

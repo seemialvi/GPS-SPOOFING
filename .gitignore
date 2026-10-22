@@ -1,0 +1,33 @@
+# Local runtime state and generated data
+/config.json
+/work/
+/build/
+/bin/
+/GPS SPOOFING/
+/_final.py
+
+# Python and developer environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.vscode/
+.idea/
+
+# Credentials, logs, native build products and captures
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.log
+*.obj
+*.exe
+*.dll
+*.pdb
+*.ilk
+*.bin
